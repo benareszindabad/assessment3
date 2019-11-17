@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:sns="http://www.mulesoft.org/schema/mule/sns"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:s3="http://www.mulesoft.org/schema/mule/s3" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/s3 http://www.mulesoft.org/schema/mule/s3/current/mule-s3.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/current/mule-sns.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<s3:config name="Amazon_S3_Configuration" doc:name="Amazon S3 Configuration" doc:id="37a5a5e5-79e1-48c4-af04-702171104385" >
+		<s3:basic-connection accessKey=" AKIAJWKZDPLHRO4WPP7A" secretKey="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" region="AP_SOUTH_1"/>
+	</s3:config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="a87ab4ec-cfa0-4751-a82c-d3b1707781fa" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="bucketCreation" doc:id="19f3c95f-8443-4d95-a0ab-5ce25610a15d" >
+		<http:listener doc:name="Listener" doc:id="25dacdf6-70dd-48ec-a814-e8791b6c790c" config-ref="HTTP_Listener_config" path="/part3"/>
+		<logger level="INFO" doc:name="Logger" doc:id="7c06d65e-f60f-4f35-8ef9-99273f68fb24" />
+		<s3:create-bucket doc:name="Create bucket" doc:id="b743934f-fa33-4aab-a9f8-926b6b44ebf3" config-ref="Amazon_S3_Configuration" bucketName="apisero-new-noida" region="US_EAST_2" acl="PUBLIC_READ_WRITE"/>
+		<logger level="INFO" doc:name="Logger" doc:id="390ace23-2fb7-4a91-be98-5cf3a55eed51" />
+	</flow>
+	<flow name="objectCreation" doc:id="19e59e17-b775-4142-8ddf-a9c1b093a546" >
+		<http:listener doc:name="Listener" doc:id="834c37f3-bc7b-4916-8bb1-ea77c96263b3" config-ref="HTTP_Listener_config" path="/create"/>
+		<s3:create-object doc:name="Create object" doc:id="4b7202cb-2074-48b5-a7b9-12c1a8bf52ae" config-ref="Amazon_S3_Configuration" bucketName="apisero-ishu-agrawal" key="new" acl="PUBLIC_READ_WRITE"/>
+	</flow>
+	<flow name="newObjectNotification" doc:id="6d7dcccd-ec47-4325-8e6a-e044777f4596" >
+		<s3:new-object-trigger doc:name="On New Object" doc:id="eb76ed4e-4a6c-4004-95b1-fdf46ab9c9a0" config-ref="Amazon_S3_Configuration" bucketName="apisero-new-noida">
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+		</s3:new-object-trigger>
+		<logger level="INFO" doc:name="Logger" doc:id="45bed677-9c97-4615-aa03-775f181e67e1" />
+		<set-payload value="new object created" doc:name="Set Payload" doc:id="54e9d0cc-b0da-4b8f-a5ae-98fce467d42d" />
+		<ee:transform doc:name="Transform Message" doc:id="967f2cdb-66f3-4f21-9896-a25b3b39bb67" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="readToken" doc:id="1c01c2c2-e281-4152-82f3-433af625dc4d" >
+		<http:listener doc:name="Listener" doc:id="a3ba58d8-9360-4a8e-b912-5632e742a839" config-ref="HTTP_Listener_config" path="/forToken"/>
+		<set-payload value="#[payload as Object]" doc:name="Set Payload" doc:id="fb369a5d-f1b5-4698-bba0-2aa31737aa11" />
+		<logger level="INFO" doc:name="Logger" doc:id="87dd0ad6-6c6d-40cd-9ebf-691daf579996" message="#[payload]"/>
+	</flow>
+	<flow name="readFile" doc:id="7d8f8889-5967-432f-840a-2ada92697e85" >
+		<http:listener doc:name="Listener" doc:id="0fc02c94-212a-4a33-b252-06afa29750bb" config-ref="HTTP_Listener_config" path="/read"/>
+		<s3:get-object doc:name="Get object" doc:id="730d7bb0-175e-434f-8cd5-c70a4f84fbd7" config-ref="Amazon_S3_Configuration" bucketName="apisero-ishu-agrawal" key="ebook-UndisturbedREST_v1.pdf"/>
+		<set-payload value="#[payload]" doc:name="Set Payload" doc:id="edb1c611-9676-4287-8c0d-68c6d1f5bf24" />
+	</flow>
+</mule>
